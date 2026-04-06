@@ -1,75 +1,125 @@
-# Atoms Generator — 设计与思考文档
+# Atoms Generator — AI Native 组件生成器 MVP
 
-> 一个基于大模型与 react-live 动态沙箱渲染的 AI UI 组件生成器 MVP，输入自然语言需求，秒级输出可交互的 React 组件。
-
----
-
-## 一、项目简介
-
-Atoms Generator 是一个全栈 AI 工具：用户在左侧面板用自然语言描述 UI 需求，后端将请求转发给 DeepSeek 大模型，模型返回纯 JSX 代码后，右侧预览区通过 react-live 实时渲染出可交互的 React 组件——整个链路无需构建、无需刷新，所见即所得。
+> 用一句话描述你的 UI 需求，AI 即刻生成可交互的 React 组件。
 
 ---
 
-## 二、技术选型
+## 🚀 项目简介
+
+**Atoms Generator** 是一个基于 **Next.js App Router + DeepSeek API + react-live** 构建的 AI 原生 UI 组件生成器。
+
+用户只需用自然语言描述 UI 需求，系统便会调用大语言模型生成符合规范的 React JSX 代码，并通过前端沙箱实时渲染为可交互的真实组件——整个链路无需构建、无需刷新、所见即所得。
+
+产品形态经历了从**单页极简生成器**到**专业工作台（Workspace）**的完整演进，目前已具备多项目会话管理、基于上下文的迭代修改等准商业级能力。
+
+---
+
+## ✨ 核心特性
+
+### 🤖 AI 驱动生成
+接入 DeepSeek `deepseek-chat` 模型，通过精心设计的 **System Prompt** 将模型输出严格约束为可被 `react-live` 直接渲染的纯 JSX 节点——无 import、无组件声明、无 Markdown 包裹，开箱即用。
+
+### ⚡ 实时沙箱渲染（Live Sandbox）
+基于 `react-live`，AI 生成的 JSX 字符串在浏览器内即时编译并渲染为真实的可交互 React 组件。`lucide-react` 图标库以 `scope` 形式注入沙箱，AI 生成的代码可直接引用图标，无需任何额外配置。
+
+### 🖥️ 工作台模式（Workspace）
+首页采用类 ChatGPT / v0.dev 的居中极简布局；提交需求后，页面以 500ms 平滑动画过渡为**左右分栏专业工作台**：
+- **左侧侧边栏**：可折叠的历史项目列表 + 当前会话对话气泡流 + 底部迭代输入栏
+- **右侧内容区**：UI 预览 / 查看源码 双 Tab + 复制代码 + 一键下载 `Component.tsx`
+
+### 📁 多项目会话管理（Sessions）
+基于 `localStorage` 实现多项目数据隔离，每个项目包含独立的 `id`、`title`、`updatedAt` 与完整的 `entries[]` 对话历史。支持历史记录折叠（ChevronDown 动效）、跨会话回溯与代码复现，刷新页面数据不丢失。
+
+### 🔁 基于上下文的迭代修改
+工作台中再次提交需求时，系统会将**当前正在渲染的 JSX 代码**连同新需求一起发送给大模型，模型在「看到旧代码」的前提下进行精准增量修改（调整位置、改变颜色、增删元素），而非每次从零生成。这是本项目与普通代码生成工具的核心差异。
+
+### 💡 灵感胶囊（Preset Prompts）
+首页内置 4 个预设 Prompt 胶囊（SaaS 定价卡片、数据仪表盘、登录框、商品卡片），降低零代码用户的上手门槛，点击即触发生成。
+
+---
+
+## 🛠️ 技术栈与架构决策
 
 | 层次 | 技术 | 选型理由 |
 |------|------|----------|
-| 全栈骨架 | **Next.js 16 App Router** | Server Components + Route Handler 一体化，无需单独维护后端服务，部署极简 |
-| 样式系统 | **Tailwind CSS v4** | 原子化 CSS 与 AI 生成代码高度契合；配合 CDN 注入解决 react-live 动态渲染时 JIT 扫描盲区 |
-| 前端沙箱 | **react-live** | 在浏览器内安全编译并渲染字符串 JSX，无需 iframe，支持实时 scope 注入（Lucide 图标库） |
-| AI 引擎 | **DeepSeek API（deepseek-chat）** | 兼容 OpenAI SDK 调用，中文指令理解出色，代码生成质量高，成本低 |
-| 状态持久化 | **localStorage** | MVP 阶段零后端依赖，轻量实现历史记录的跨会话保存；通过自定义 Hook 封装，便于后续替换为云端方案 |
-| 图标 | **lucide-react** | 轻量、Tree-shakeable，作为 scope 注入 react-live，AI 生成的代码可直接使用图标组件 |
+| 全栈骨架 | **Next.js 16 App Router** | Server Component + Route Handler 一体化，零额外后端；动态 API 路由 `/api/generate` 处理大模型调用 |
+| 样式系统 | **Tailwind CSS v4** | 原子化类名与 AI 生成代码高度契合；配合 CDN 注入解决 react-live 动态渲染时的 JIT 扫描盲区 |
+| 前端沙箱 | **react-live** | 浏览器内安全编译并渲染 JSX 字符串，支持实时 scope 注入，无需 iframe |
+| AI 引擎 | **DeepSeek API**（兼容 OpenAI SDK）| 中文指令理解出色，代码生成质量高，成本可控；`deepseek-chat` 模型兼容 OpenAI 客户端，迁移成本极低 |
+| 图标库 | **lucide-react** | Tree-shakeable，作为 scope 整体注入 react-live，AI 生成的代码直接可用 |
+| 工具函数 | **clsx + tailwind-merge** | `cn()` 工具函数处理条件类名合并，避免 Tailwind 样式冲突 |
+| 持久化 | **localStorage** | MVP 阶段零后端依赖，通过 `useProjects` 自定义 Hook 封装读写逻辑，接口设计预留云端替换空间 |
+
+**架构亮点：双视图状态机**
+
+`page.tsx` 维护一个 `hasResult` 布尔值驱动 Home ↔ Workspace 的视图切换，两套视图通过 `absolute inset-0` 叠层 + CSS `opacity/transform` 过渡，无路由跳转、无页面重载，体验流畅。
+
+生成逻辑被显式拆分为两个独立函数：
+- `handleHomeGenerate` — 只调用 `createProject`，永远新建
+- `handleWorkspaceGenerate` — 只调用 `addEntry`，永远追加；同时携带 `currentCode` 上下文
 
 ---
 
-## 三、AI 提效心法（Highlight）
+## 🤖 AI 协同开发（Vibe Coding）
 
-本项目全程使用 **Cursor Agent（claude-sonnet-4.6 模型）** 进行 Vibe Coding，以下是几个关键决策：
+本项目由开发者与 **Cursor Agent（Claude Sonnet 4.6）** 结对编程完成，是一次对「AI 时代前端工程师工作流」的深度实践。
 
-### 3.1 用 System Prompt 驯服模型输出
+### 开发模式
 
-react-live 只接受纯 JSX 节点——不能有 `import`、不能有组件声明、不能有 Markdown 包裹。为此，在后端 Route Handler 中硬编码了一段强约束性 System Prompt，从多个维度明确"违禁项"，并告知模型"违反将导致系统崩溃"以强化遵从度。实践证明，这比在前端做后处理清洗要更稳定、更彻底。
+> 人来架构 + AI 来实现 + 人来 Review = 10× 开发效率
 
-### 3.2 用自然语言驱动全栈骨架搭建
+开发者负责产品定义、架构决策与质量把关；Agent 负责代码实现、多文件协同与边界情况处理。每一次有价值的需求，均以精准的自然语言指令下达，Agent 可在单次响应中同时修改 5+ 个文件并保持全局一致性。
 
-从 Next.js 项目初始化、依赖安装、目录结构规划，到跨组件状态传递方案（`useState` 提升至 page 层 + props 下传），整个架构决策均通过自然语言与 Agent 协作完成。Agent 不仅能执行终端命令，还能在多文件之间保持上下文一致性，相当于一个理解全局的 pair programmer。
+### 关键攻坚案例
 
-### 3.3 分层思考，指令原子化
+**① System Prompt 工程 — 约束模型输出格式**
 
-每次提需求时，先在脑中将任务拆解为独立原子（安装依赖 → 建接口 → 改组件 → 串状态），再逐步下达，避免一次性塞入过多变更导致 Agent 遗漏细节。这种"人来架构、AI 来实现"的协作模式，将原本需要半天的 MVP 搭建压缩到了数小时内完成。
+`react-live` 只接受纯 JSX 节点，不允许任何 `import` 或组件声明。通过在后端 Route Handler 中硬编码强约束性 System Prompt（「违反将导致系统崩溃」的强化写法），将模型输出格式控制率提升至接近 100%，远比前端后处理清洗更稳健。
+
+**② Flex 弹性空间挤压问题**
+
+侧边栏中「历史项目」与「当前会话」共用同一个 `flex-1 overflow-y-auto` 容器，历史记录增多时会将当前会话区域完全挤压。通过引入三层 Flex 嵌套结构（外层 `flex-1 min-h-0` + 历史区 `shrink-0` + 会话区 `flex-1 min-h-0 overflow-y-auto`），彻底解决溢出问题——`min-h-0` 是突破 Flex 子元素默认 `min-height: auto` 限制的关键。
+
+**③ Hydration 样式丢失**
+
+Tailwind CDN（为 react-live 动态渲染注入）与编译版 Tailwind v4 在客户端水合后产生样式覆盖冲突，导致 Logo 渐变背景丢失。通过将 Logo 容器的背景改为 React `style={{ background: 'linear-gradient(...)' }}` 内联样式，完全绕过了 CSS 类名的水合竞争，彻底根治问题。
+
+**④ 上下文迭代修改架构**
+
+工作台中再次生成时，旧的实现每次都会「新建项目」。问题根源在于单一的 `handleGenerate` 函数通过 if/else 分支判断，在某些状态下读取到了过期的 `currentProject` 闭包值。重构方案：将生成逻辑拆分为两个职责明确的 `useCallback` 函数，并在工作区生成时通过 API 请求体携带 `currentCode` 快照，让大模型真正具备「在旧代码上修改」的语义理解能力。
+
+### 核心结论
+
+这次实践验证了 AI 时代前端工程师的新核心竞争力：
+
+- **重架构**：能设计可扩展的组件边界、状态流与 API 契约
+- **懂交互**：能精确描述动效、布局和用户体验预期
+- **强 Prompt**：能将模糊需求转化为精准的、可执行的 AI 指令
+
+编写代码的速度已不再是核心壁垒，「定义清楚问题」的能力才是。
 
 ---
 
-## 四、核心功能亮点
+## 🔮 未来演进路线（Roadmap）
 
-**所见即所得的动态渲染**
-用户输入 Prompt → 后端调用 DeepSeek → 返回纯 JSX 字符串 → `react-live` 在客户端实时编译渲染，全程无页面跳转，延迟感知极低。Lucide 图标组件通过 `scope` 注入，AI 生成的代码可以直接引用，无需额外配置。
+当前 MVP 已验证了「自然语言 → 可交互 UI」的完整产品闭环。下一阶段的演进方向：
 
-**历史记录持久化**
-每次成功生成后，`{ id, prompt, code }` 三元组自动写入 `localStorage`。刷新页面后历史仍然保留，点击任意历史条目可一键将对应代码重载到预览区，方便对比和复用之前的生成结果。自定义 Hook `useHistory` 封装了所有读写逻辑，业务层零感知存储细节。
+### 近期（工程强化）
 
----
+- **沙箱安全升级**：将 `react-live` 的主线程执行迁移至 `<iframe sandbox>` 或 `Web Worker`，通过 `postMessage` 通信彻底隔离用户代码，防止 XSS 攻击
+- **Streaming 流式输出**：接入 `stream: true` 模式，逐 token 推送生成内容，消除大模型响应延迟的等待感
+- **RAG 接入**：将公司组件库文档向量化，在调用大模型时自动检索注入，让生成的代码直接复用已有设计系统
 
-## 五、未来演进思考
+### 中期（产品升级）
 
-当前 MVP 验证了核心链路的可行性。若推进到真实业务场景，我会重点考虑以下几个方向：
+- **云端持久化**：将 `localStorage` 替换为 **Supabase**（PostgreSQL + RLS），实现多端同步、团队协作与版本历史
+- **Prompt 模板系统**：内置行业常用场景模板（SaaS、电商、数据大屏），降低专业用户学习成本
 
-**沙箱安全加固**
-`react-live` 在主线程执行动态代码，存在 XSS 风险。生产环境应将渲染层迁移至 `<iframe sandbox>` 或 `Web Worker`，通过 `postMessage` 通信，彻底隔离用户代码的执行上下文，防止恶意脚本访问宿主页面的 DOM 和 Cookie。
+### 长期（范式跃迁）
 
-**云端持久化与用户隔离**
-将 `localStorage` 替换为 **Supabase**（PostgreSQL + Row-Level Security），每条生成记录绑定用户 ID，支持多端同步、团队共享和历史版本回溯，真正实现用户数据隔离。
-
-**RAG 增强的代码生成**
-接入 **RAG（检索增强生成）** 流程：将公司内部组件库的文档、Props 类型定义向量化存入知识库，在调用大模型时自动检索相关组件文档注入 Prompt，让 AI 生成的代码直接复用公司已有的设计系统，而非从零造轮子。
-
-**流式输出提升体验**
-当前实现为等待模型全量返回后一次性渲染。可改为 **Streaming** 模式（`stream: true`），配合 `ReadableStream` 逐 token 推送，代码生成过程实时可见，显著降低用户感知延迟。
-
-**Prompt 模板系统**
-内置常用场景的 Prompt 模板（表单、卡片、数据表格、导航栏等），降低用户的输入门槛，同时通过模板规范化输出，提升生成代码的一致性。
+接入 **WebContainers** 或 **Sandpack 虚拟文件系统（VFS）**，将大模型输出从单一的 JSX 字符串**升级为完整的全栈项目脚手架**——包含目录树、多文件互相引用、`package.json` 依赖管理与 TypeScript 类型定义。届时用户一句话不只能生成一个组件，而是一个可以直接部署的完整工程，真正实现媲美生产环境的 **AI-Native IDE**。
 
 ---
 
 *本项目为个人 MVP，代码均为原创设计与实现。*
+*Built with ❤️ and Claude Sonnet by Cursor Agent.*

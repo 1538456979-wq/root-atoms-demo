@@ -35,9 +35,10 @@ const getClient = (): OpenAI => {
 
 export async function POST(req: NextRequest) {
   try {
-    // 解析请求体
     const body = await req.json();
     const prompt: string | undefined = body?.prompt;
+    // 可选：当前正在展示的代码，有值时切换为「基于旧代码修改」模式
+    const currentCode: string | undefined = body?.currentCode;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim() === "") {
       console.warn("[generate] 请求缺少有效的 prompt 字段");
@@ -47,23 +48,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`[generate] 收到生成请求，prompt 长度: ${prompt.length} 字符`);
-    console.log(`[generate] prompt 内容: ${prompt.slice(0, 100)}${prompt.length > 100 ? "…" : ""}`);
+    const isModifyMode = !!(currentCode && currentCode.trim());
+    console.log(`[generate] 模式: ${isModifyMode ? "迭代修改" : "全新生成"}`);
+    console.log(`[generate] prompt 长度: ${prompt.length} 字符`);
+    if (isModifyMode) {
+      console.log(`[generate] currentCode 长度: ${currentCode!.length} 字符`);
+    }
+
+    // 构建发送给大模型的用户消息
+    // 修改模式：将旧代码 + 新需求一起打包，让模型理解「在此基础上调整」的语义
+    const userMessage = isModifyMode
+      ? `当前已有的组件 JSX 代码如下（请在此基础上进行修改，不要从头重写）：
+
+\`\`\`jsx
+${currentCode}
+\`\`\`
+
+用户的修改需求：${prompt}`
+      : prompt;
 
     const openai = getClient();
 
-    // 调用大模型
     console.log("[generate] 开始调用 deepseek-chat 模型……");
     const completion = await openai.chat.completions.create({
       model: "deepseek-chat",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: prompt },
+        { role: "user", content: userMessage },
       ],
       temperature: 0.7,
     });
 
-    // 提取生成内容
     const rawCode = completion.choices?.[0]?.message?.content ?? "";
     const code = rawCode.trim();
 
@@ -80,18 +95,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ code });
   } catch (err: unknown) {
-    // 区分业务错误与未知错误，方便定位问题
     if (err instanceof Error) {
       console.error(`[generate] 接口异常: ${err.message}`, err.stack);
-      return NextResponse.json(
-        { error: err.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: err.message }, { status: 500 });
     }
     console.error("[generate] 未知异常:", err);
-    return NextResponse.json(
-      { error: "服务器内部错误" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });
   }
 }
