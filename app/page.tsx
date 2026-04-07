@@ -7,7 +7,9 @@ import Header from "@/components/Header";
 import PromptBar from "@/components/PromptBar";
 import WorkspaceLeft from "@/components/WorkspaceLeft";
 import WorkspaceRight from "@/components/WorkspaceRight";
+import AuthModal from "@/components/AuthModal";
 import { useProjects } from "@/hooks/useProjects";
+import { useAuth } from "@/hooks/useAuth";
 import type { Project, ProjectEntry } from "@/hooks/useProjects";
 
 // ── 公共 fetch 逻辑，与 React 状态无关 ──────────────────────────────
@@ -39,8 +41,10 @@ const Home = () => {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<number | null>(null);
   const [pendingPrompt, setPendingPrompt] = useState("");
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const { projects, createProject, addEntry } = useProjects();
+  const { user, isAuthLoading, login, register, logout } = useAuth();
 
   // 切换到 Workspace 的条件：已有项目，或正在生成第一条
   const hasResult = !!currentProject || isLoading;
@@ -144,7 +148,11 @@ const Home = () => {
             : "opacity-100 scale-100"
         )}
       >
-        <Header />
+        <Header
+          onOpenAuth={() => setAuthModalOpen(true)}
+          user={user}
+          onLogout={logout}
+        />
         <div className="flex-1 flex flex-col items-center justify-center gap-10 px-6 pb-24 -translate-y-4">
           <div className="flex flex-col items-center gap-4 text-center">
             <div
@@ -176,13 +184,23 @@ const Home = () => {
       {/* ══ Workspace 视图（左右分栏工作台） ════════════════════════ */}
       <div
         className={cn(
-          "absolute inset-0 transition-all duration-500 ease-out",
+          "absolute inset-0 flex flex-col transition-all duration-500 ease-out",
           hasResult
             ? "opacity-100 translate-y-0"
             : "opacity-0 pointer-events-none translate-y-4"
         )}
       >
-        <div className="h-screen p-4 flex gap-4">
+        {/* Workspace 视图也保留 Header，展示用户信息 */}
+        <Header
+          hasResult={hasResult}
+          onReset={handleNewProject}
+          onOpenAuth={() => setAuthModalOpen(true)}
+          user={user}
+          onLogout={logout}
+        />
+
+        {/* 左右分栏区域 */}
+        <div className="flex-1 min-h-0 p-4 flex gap-4">
           {/* 左侧亮色侧边栏；传入 handleWorkspaceGenerate */}
           <WorkspaceLeft
             currentProject={currentProject}
@@ -196,15 +214,28 @@ const Home = () => {
             onNewProject={handleNewProject}
             onSelectProject={handleSelectProject}
             onSelectEntry={handleSelectEntry}
+            isLoggedIn={!!user}
+            onOpenAuth={() => setAuthModalOpen(true)}
           />
 
           {/* 右侧白色预览卡片 */}
           <WorkspaceRight
             generatedCode={displayCode}
             isLoading={isLoading}
+            isLoggedIn={!!user}
+            onOpenAuth={() => setAuthModalOpen(true)}
           />
         </div>
       </div>
+
+      {/* ══ 登录注册弹窗（挂载在最外层，覆盖整个页面） ═══════════════ */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        isAuthLoading={isAuthLoading}
+        onLogin={login}
+        onRegister={register}
+      />
     </div>
   );
 };

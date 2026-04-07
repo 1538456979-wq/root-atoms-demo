@@ -21,6 +21,10 @@ interface WorkspaceLeftProps {
   onNewProject: () => void;
   onSelectProject: (project: Project) => void;
   onSelectEntry: (entry: ProjectEntry) => void;
+  /** 当前用户，null 表示游客 */
+  isLoggedIn?: boolean;
+  /** 唤起登录弹窗 */
+  onOpenAuth?: () => void;
 }
 
 const WorkspaceLeft = ({
@@ -35,6 +39,8 @@ const WorkspaceLeft = ({
   onNewProject,
   onSelectProject,
   onSelectEntry,
+  isLoggedIn = false,
+  onOpenAuth,
 }: WorkspaceLeftProps) => {
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
@@ -60,7 +66,14 @@ const WorkspaceLeft = ({
       {/* ── 顶部：新建项目 ─────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 shrink-0">
         <button
-          onClick={onNewProject}
+          onClick={() => {
+            if (!isLoggedIn) {
+              // 未登录时弹出引导，关闭弹窗后不执行新建（软引导，不强制拦截）
+              onOpenAuth?.();
+            } else {
+              onNewProject();
+            }
+          }}
           className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors text-sm font-semibold text-white shadow-sm"
         >
           <Plus className="w-4 h-4" />

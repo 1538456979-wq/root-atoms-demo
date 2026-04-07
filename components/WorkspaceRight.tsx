@@ -12,9 +12,18 @@ type Tab = "preview" | "code";
 interface WorkspaceRightProps {
   generatedCode: string;
   isLoading: boolean;
+  /** 当前是否已登录 */
+  isLoggedIn?: boolean;
+  /** 唤起登录弹窗 */
+  onOpenAuth?: () => void;
 }
 
-const WorkspaceRight = ({ generatedCode, isLoading }: WorkspaceRightProps) => {
+const WorkspaceRight = ({
+  generatedCode,
+  isLoading,
+  isLoggedIn = false,
+  onOpenAuth,
+}: WorkspaceRightProps) => {
   const [activeTab, setActiveTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState(false);
   const { message, isLastMessage } = useLoadingMessages(isLoading);
@@ -29,8 +38,12 @@ const WorkspaceRight = ({ generatedCode, isLoading }: WorkspaceRightProps) => {
     }
   };
 
-  /** Blob API 触发浏览器下载 */
+  /** Blob API 触发浏览器下载；未登录时先唤起认证弹窗 */
   const handleDownload = () => {
+    if (!isLoggedIn) {
+      onOpenAuth?.();
+      return;
+    }
     const blob = new Blob([generatedCode], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
